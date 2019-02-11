@@ -1,0 +1,45 @@
+4. Grammar
+
+An N-Quads document is a Unicode[UNICODE] character string encoded in UTF-8. Unicode code points only in the range U+0 to U+10FFFF inclusive are allowed.
+
+White space (tab U+0009 or space U+0020) is used to separate two terminals which would otherwise be (mis-)recognized as one terminal. White space is significant in the production STRING_LITERAL_QUOTE.
+
+Comments in N-Quads take the form of '#', outside an IRIREF or STRING_LITERAL_QUOTE, and continue to the end of line (EOL) or end of file if there is no end of line after the comment marker. Comments are treated as white space.
+
+The EBNF used here is defined in XML 1.0 [EBNF-NOTATION].
+
+Escape sequence rules are the same as Turtle [TURTLE]. However, as only the STRING_LITERAL_QUOTE production is allowed new lines in literals MUST be escaped.
+[1] 	nquadsDoc 	::= 	statement? (EOL statement)* EOL?
+[2] 	statement 	::= 	subject predicate object graphLabel? '.'
+[3] 	subject 	::= 	IRIREF | BLANK_NODE_LABEL
+[4] 	predicate 	::= 	IRIREF
+[5] 	object 	::= 	IRIREF | BLANK_NODE_LABEL | literal
+[6] 	graphLabel 	::= 	IRIREF | BLANK_NODE_LABEL
+[7] 	literal 	::= 	STRING_LITERAL_QUOTE ('^^' IRIREF | LANGTAG)?
+Productions for terminals
+[144s] 	LANGTAG 	::= 	'@' [a-zA-Z]+ ('-' [a-zA-Z0-9]+)*
+[8] 	EOL 	::= 	[#xD#xA]+
+[10] 	IRIREF 	::= 	'<' ([^#x00-#x20<>"{}|^`\] | UCHAR)* '>'
+[11] 	STRING_LITERAL_QUOTE 	::= 	'"' ([^#x22#x5C#xA#xD] | ECHAR | UCHAR)* '"'
+[141s] 	BLANK_NODE_LABEL 	::= 	'_:' (PN_CHARS_U | [0-9]) ((PN_CHARS | '.')* PN_CHARS)?
+[12] 	UCHAR 	::= 	'\u' HEX HEX HEX HEX | '\U' HEX HEX HEX HEX HEX HEX HEX HEX
+[153s] 	ECHAR 	::= 	'\' [tbnrf"'\]
+[157s] 	PN_CHARS_BASE 	::= 	[A-Z] | [a-z] | [#x00C0-#x00D6] | [#x00D8-#x00F6] | [#x00F8-#x02FF] | [#x0370-#x037D] | [#x037F-#x1FFF] | [#x200C-#x200D] | [#x2070-#x218F] | [#x2C00-#x2FEF] | [#x3001-#xD7FF] | [#xF900-#xFDCF] | [#xFDF0-#xFFFD] | [#x10000-#xEFFFF]
+[158s] 	PN_CHARS_U 	::= 	PN_CHARS_BASE | '_' | ':'
+[160s] 	PN_CHARS 	::= 	PN_CHARS_U | '-' | [0-9] | #x00B7 | [#x0300-#x036F] | [#x203F-#x2040]
+[162s] 	HEX 	::= 	[0-9] | [A-F] | [a-f]
+5. Parsing
+
+Parsing N-Quads requires a state of one item:
+
+    Map[string -> blank node] bnodeLabels — A mapping from string to blank node.
+
+5.1 RDF Term Constructors
+
+This table maps productions and lexical tokens to RDF terms or components of RDF terms listed in section 5. Parsing:
+production	type	procedure
+IRIREF 	IRI 	The characters between "<" and ">" are taken, with the escape sequences unescaped, to form the unicode string of the IRI.
+STRING_LITERAL_QUOTE 	lexical form	The characters between the outermost '"'s are taken, with escape sequences unescaped, to form the unicode string of a lexical form.
+LANGTAG 	language tag	The characters following the @ form the unicode string of the language tag.
+literal 	literal 	The literal has a lexical form of the first rule argument, STRING_LITERAL_QUOTE, and either a language tag of LANGTAG or a datatype IRI of iri, depending on which rule matched the input. If the LANGTAG rule matched, the datatype is rdf:langString and the language tag is LANGTAG. If neither a language tag nor a datatype IRI is provided, the literal has a datatype of xsd:string.
+BLANK_NODE_LABEL 	blank node 	The string matching the second argument, PN_LOCAL, is a key in bnodeLabels. If there is no corresponding blank node in the map, one is allocated.
